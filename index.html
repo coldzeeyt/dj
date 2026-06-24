@@ -235,7 +235,7 @@
 
 
   /* ── IPAD / TABLET (601–900px) ──────────────────────────── */
-  @media (min-width: 601px) and (max-width: 900px) {
+  @media (min-width: 601px) and (max-width: 1024px) {
     nav { padding: 15px 32px; }
     .nav-link { display: none; }
     nav.compact { padding: 10px 32px; }
@@ -897,7 +897,7 @@
   window._scratchStart = function() {
     if (!playing || !ctx) return;
     isScratchingAudio = true;
-    master.gain.setTargetAtTime(0.1, ctx.currentTime, 0.02); // duck music
+    master.gain.setTargetAtTime(0.1, ctx.currentTime, 0.02);
   };
 
   window._scratchMove = function(delta) {
@@ -906,76 +906,44 @@
     var vol   = Math.min(speed * 0.06, 0.5);
     if (vol < 0.014) return;
     var t = ctx.currentTime;
-
-    // Layer 1: resonant bandpass — the core vinyl-friction character
     var src1 = ctx.createBufferSource(); src1.buffer = noise(0.07);
     var bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-    bp.frequency.value = delta > 0
-      ? Math.min(5000, 1800 + speed * 90)   // forward = bright zip
-      : Math.max(300,  1100 - speed * 50);   // backward = dark drag
-    bp.Q.value = 14; // high resonance = vinyl character
-
-    // Layer 2: high-frequency sizzle
+    bp.frequency.value = delta > 0 ? Math.min(5000, 1800 + speed * 90) : Math.max(300, 1100 - speed * 50);
+    bp.Q.value = 14;
     var src2 = ctx.createBufferSource(); src2.buffer = noise(0.07);
     var hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6000;
     var g2 = ctx.createGain(); g2.gain.value = vol * 0.3;
-
-    // Mild soft-clip waveshaper for grit
     var ws = ctx.createWaveShaper();
     var curve = new Float32Array(512);
-    for (var i = 0; i < 512; i++) {
-      var x = (i * 2) / 512 - 1;
-      curve[i] = (Math.PI + 50) * x / (Math.PI + 50 * Math.abs(x));
-    }
+    for (var i = 0; i < 512; i++) { var x = (i * 2) / 512 - 1; curve[i] = (Math.PI + 50) * x / (Math.PI + 50 * Math.abs(x)); }
     ws.curve = curve;
-
     var g1 = ctx.createGain(); g1.gain.value = vol;
     src1.connect(bp); bp.connect(ws); ws.connect(g1); g1.connect(master);
     src2.connect(hp); hp.connect(g2); g2.connect(master);
     src1.start(t); src1.stop(t + 0.075);
     src2.start(t); src2.stop(t + 0.075);
+    if (window._eqBoost) window._eqBoost(delta);
   };
 
   window._scratchEnd = function() {
     if (!playing || !ctx) return;
     isScratchingAudio = false;
     var t = ctx.currentTime;
-
-    // Phase 1: pullback drag — descending resonant sweep (record slowing to a stop)
     var s1 = ctx.createBufferSource(); s1.buffer = noise(0.55);
     var f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.Q.value = 10;
-    f1.frequency.setValueAtTime(2800, t);
-    f1.frequency.exponentialRampToValueAtTime(80, t + 0.52);
+    f1.frequency.setValueAtTime(2800, t); f1.frequency.exponentialRampToValueAtTime(80, t + 0.52);
     var g1 = ctx.createGain();
-    g1.gain.setValueAtTime(0.38, t);
-    g1.gain.linearRampToValueAtTime(0.38, t + 0.38);
+    g1.gain.setValueAtTime(0.38, t); g1.gain.linearRampToValueAtTime(0.38, t + 0.38);
     g1.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-    s1.connect(f1); f1.connect(g1); g1.connect(master);
-    s1.start(t); s1.stop(t + 0.58);
-
-    // Phase 2: brief crackle pop (needle catching the groove again)
-    var s2 = ctx.createBufferSource(); s2.buffer = noise(0.04);
-    var f2 = ctx.createBiquadFilter(); f2.type = 'highpass'; f2.frequency.value = 3000;
-    var g2 = ctx.createGain();
-    g2.gain.setValueAtTime(0.5, t + 0.56);
-    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.60);
-    s2.connect(f2); f2.connect(g2); g2.connect(master);
-    s2.start(t + 0.56); s2.stop(t + 0.62);
-
-    // Phase 3: spin-up whoosh — rising pitch as record gets back to speed
+    s1.connect(f1); f1.connect(g1); g1.connect(master); s1.start(t); s1.stop(t + 0.58);
     var s3 = ctx.createBufferSource(); s3.buffer = noise(0.4);
     var f3 = ctx.createBiquadFilter(); f3.type = 'bandpass'; f3.Q.value = 6;
-    f3.frequency.setValueAtTime(120, t + 0.60);
-    f3.frequency.exponentialRampToValueAtTime(3800, t + 1.0);
+    f3.frequency.setValueAtTime(120, t + 0.05); f3.frequency.exponentialRampToValueAtTime(3800, t + 0.45);
     var g3 = ctx.createGain();
-    g3.gain.setValueAtTime(0, t + 0.60);
-    g3.gain.linearRampToValueAtTime(0.28, t + 0.70);
-    g3.gain.linearRampToValueAtTime(0, t + 1.0);
-    s3.connect(f3); f3.connect(g3); g3.connect(master);
-    s3.start(t + 0.60); s3.stop(t + 1.05);
-
-    // Restore music after spin-up completes
-    master.gain.setTargetAtTime(0.46, t + 0.62, 0.07);
+    g3.gain.setValueAtTime(0, t + 0.05); g3.gain.linearRampToValueAtTime(0.28, t + 0.15);
+    g3.gain.linearRampToValueAtTime(0, t + 0.45);
+    s3.connect(f3); f3.connect(g3); g3.connect(master); s3.start(t + 0.05); s3.stop(t + 0.5);
+    master.gain.setTargetAtTime(0.46, t + 0.08, 0.05);
   };
 })();
 
