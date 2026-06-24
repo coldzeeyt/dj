@@ -72,9 +72,9 @@
 
   /* TICKER */
   .track-display { width: 280px; overflow: hidden; border: 1px solid var(--border); background: rgba(255,255,255,0.02); padding: 7px 0; margin-top: 12px; }
-  .track-ticker { display: flex; white-space: nowrap; animation: tickerScroll 12s linear infinite; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
+  .track-ticker { display: flex; white-space: nowrap; will-change: transform; font-size: 0.64rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); }
   .track-ticker span { flex-shrink: 0; }
-  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  
 
   /* STRIP */
   .strip { background: var(--accent); padding: 16px 56px; display: flex; align-items: center; }
@@ -313,7 +313,7 @@
       </select>
     </div>
     <div class="field"><label for="event-date">Event Date<span class="req">*</span></label><input type="date" id="event-date" name="Event Date" required /></div>
-    <div class="field"><label for="event-time">Start Time</label><input type="time" id="event-time" name="Start Time" /></div>
+    <div class="field"><label for="event-time">Start Time<span class="req">*</span></label><input type="time" id="event-time" name="Start Time" required /></div>
     <div class="field"><label for="venue">Venue / Location<span class="req">*</span></label><input type="text" id="venue" name="Venue" placeholder="Venue name &amp; city" required /></div>
     <div class="field">
       <label for="set-length">Set Length</label>
@@ -354,6 +354,21 @@
 </footer>
 
 <script>
+// ── INFINITE TICKER ────────────────────────────────────────
+(function() {
+  var ticker = document.querySelector('.track-ticker');
+  var pos = 0;
+  function loop() {
+    pos -= 0.75; // px per frame — tweak for speed
+    var half = ticker.scrollWidth / 2;
+    if (pos <= -half) pos += half; // reset invisibly: second copy slides to where first was
+    ticker.style.transform = 'translateX(' + pos + 'px)';
+    requestAnimationFrame(loop);
+  }
+  // Wait one frame so scrollWidth is computed
+  requestAnimationFrame(function() { requestAnimationFrame(loop); });
+})();
+
 // ── EQ VISUALIZER ──────────────────────────────────────────
 (function() {
   var bars    = document.querySelectorAll('.eq-bar');
